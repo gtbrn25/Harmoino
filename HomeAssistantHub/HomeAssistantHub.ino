@@ -25,11 +25,12 @@
 //   You only need this if you are trying to manually load a remote address because you don't have the hub anymore.
 //   Once you reload the sketch with this, you can use the Migrate button in the HA device to save the remote address
 //   to flash.  After that you can remove this and reload the sketch one more time.
-// REMOTE_ADR_PIPE1 - an optional supplemental remote address, read fresh every boot and always active,
+// REMOTE_ADR_PIPE3 - an optional supplemental remote address, read fresh every boot and always active,
 //   grouped onto this radio's extra reading pipes alongside the normally-paired remote above (default REMOTE_ADR)
-// REMOTE_ADR_PIPE2 - a second optional supplemental remote address, same idea as REMOTE_ADR_PIPE1 (default 0/unused)
+// REMOTE_ADR_PIPE4 - a second optional supplemental remote address, same idea as REMOTE_ADR_PIPE3 (default 0/unused)
+// REMOTE_ADR_PIPE5 - a third optional supplemental remote address, same idea as REMOTE_ADR_PIPE3 (default 0/unused)
 //   Supplemental remotes must share the same top 4 bytes as the paired remote - this is a hardware
-//   requirement for using multiple nRF24 reading pipes on one radio. Set either to 0 to leave unused.
+//   requirement for using multiple nRF24 reading pipes on one radio. Set any to 0 to leave unused.
 // Harmony commands
 //   Type 0 : Only accept single clicks separated nu button releases (most responsive)
 //   Type 1 : Generated repeated clicks when button is held 
@@ -130,11 +131,14 @@ uint64_t address = 0;
 char addressChar[50];
 
 // Optional supplemental remotes sharing this radio's extra reading pipes
-// (REMOTE_ADR_PIPE1/PIPE2), grouped alongside the normally-paired remote.
+// (REMOTE_ADR_PIPE3/PIPE4/PIPE5), grouped alongside the normally-paired remote.
 // 0 means unused.
-const uint64_t pipe3Address = REMOTE_ADR_PIPE1;
-const uint64_t pipe4Address = REMOTE_ADR_PIPE2;
-char groupAddressChar[110]; // comma-separated list of every address this radio is listening for
+const uint64_t pipe3Address = REMOTE_ADR_PIPE3;
+const uint64_t pipe4Address = REMOTE_ADR_PIPE4;
+const uint64_t pipe5Address = REMOTE_ADR_PIPE5;
+char pipe3Char[20];
+char pipe4Char[20];
+char pipe5Char[20];
 
 typedef struct {
   uint32_t id;
@@ -195,11 +199,13 @@ harmonyCommandT harmonyCommandList[] =
 
 // Network and Home Assistant mqtt clients
 NETWORK_CLIENT;
-HADevice device;
+char deviceId[50]; // sanitized, lowercased slug of DEVICE_NAME - used as the HA unique ID / MQTT topic segment
+HADevice device(deviceId);
 HAMqtt mqtt(client, device);
 unsigned long shortLastUpdateAt = 0;
 unsigned long longLastUpdateAt = 0;
 char mqttPayload[50];
+char mqttTopicChar[80]; // full topic string shown by the "MQTT Topic" diagnostic entity
 char uptimeChar[50];
 char macChar[50];
 char ipChar[20];
@@ -212,6 +218,11 @@ HASensor macAddress("macAddress");
 HASensor ipAddress("ipAddress");
 HASensor wifiRssi("wifiRssi");
 HASensor remoteAddress("remoteAddress");
+HASensor pipe2AddressSensor("pipe2Address");
+HASensor pipe3AddressSensor("pipe3Address");
+HASensor pipe4AddressSensor("pipe4Address");
+HASensor pipe5AddressSensor("pipe5Address");
+HASensor mqttTopicSensor("mqttTopic");
 HABinarySensor radioStatus("radioStatus");
 HAButton rebootDevice("rebootDevice");
 HAButton resetDevice("resetDevice");
@@ -257,10 +268,37 @@ void setup() {
   Serial.begin(115200);
   delay(10000);
   Serial.println("----Starting Device----");
+  buildDeviceId();
   setupPreferences();
   setupNetwork();
   setupNrf24(); 
   setupHomeAssistant();
+}
+
+// Builds a lowercased, underscore-separated slug of DEVICE_NAME (e.g.
+// "Harmoino Family Room" -> "harmoino_family_room") into the global deviceId
+// buffer. This becomes the HA unique ID and appears in every MQTT topic in
+// place of the previous MAC-address-derived hex string. Must run before
+// setupHomeAssistant()/mqtt.begin() - HADevice stores a pointer to this
+// buffer, not a copy, so deviceId must already hold its final value by the
+// time anything reads it.
+void buildDeviceId() {
+  const char *src = DEVICE_NAME;
+  int j = 0;
+  for (int i = 0; src[i] != '\0' && j < (int)sizeof(deviceId) - 1; i++) {
+    char c = src[i];
+    if (c >= 'A' && c <= 'Z') {
+      c = c - 'A' + 'a';
+    }
+    if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) {
+      c = '_';
+    }
+    deviceId[j++] = c;
+  }
+  deviceId[j] = '\0';
+  Serial.print("Device ID (used in MQTT topics): ");
+  Serial.println(deviceId);
+  sprintf(mqttTopicChar, "%s/%s/keyPress/stat_t", mqtt.getDataPrefix(), deviceId);
 }
 
 void setupPreferences() {
@@ -274,33 +312,24 @@ void setupPreferences() {
     sprintf(addressChar, "ready for pairing");
     Serial.println("No remote address, triggering initial setup");
   }
-  buildGroupAddressChar();
+  formatPipeAddress(pipe3Char, pipe3Address);
+  formatPipeAddress(pipe4Char, pipe4Address);
+  formatPipeAddress(pipe5Char, pipe5Address);
 }
 
-// Builds the comma-separated list of supplemental remotes configured via
-// REMOTE_ADR_PIPE1/PIPE2, grouped onto this radio's extra reading pipes. The
-// primary paired address is intentionally left out of this list; when no
-// supplemental pipes are configured at all, it falls back to showing the
-// primary address so the entity isn't left blank.
-void buildGroupAddressChar() {
-  groupAddressChar[0] = '\0';
-  if (pipe3Address) {
-    char tmp[20];
-    sprintf(tmp, "0x%llX", pipe3Address);
-    strcat(groupAddressChar, tmp);
-  }
-  if (pipe4Address) {
-    char tmp[20];
-    sprintf(tmp, "%s0x%llX", groupAddressChar[0] ? "," : "", pipe4Address);
-    strcat(groupAddressChar, tmp);
-  }
-  if (!groupAddressChar[0]) {
-    strcpy(groupAddressChar, addressChar);
+// Formats a supplemental pipe's fixed address (from REMOTE_ADR_PIPE3/PIPE4/PIPE5)
+// into buf, or "unused" if that pipe isn't configured (address is 0).
+void formatPipeAddress(char *buf, uint64_t pipeAddr) {
+  if (pipeAddr) {
+    sprintf(buf, "0x%llX", pipeAddr);
+  } else {
+    sprintf(buf, "unused");
   }
 }
+
 
 void setupNetwork() {
-  if (USE_WIRED||USE_WIRED_SPI) {
+  if (USE_WIRED || USE_WIRED_SPI) {
     Serial.print("Connecting to network");
   } else {
     Serial.print("Connecting to ");
@@ -321,7 +350,7 @@ void setupNetwork() {
   Serial.print("IP address: ");
   Serial.println(ipChar);
   sprintf(rssiChar, "%d", GET_WIFI_RSSI);
-  if (USE_WIRED||USE_WIRED_SPI){
+  if (USE_WIRED || USE_WIRED_SPI){
     Serial.print("Link speed: ");
     Serial.print(rssiChar);
     Serial.println(" Mb/s");
@@ -347,6 +376,10 @@ void setupNrf24() {
       radio.setDataRate(RF24_2MBPS);
       radio.enableDynamicPayloads();
       radio.setCRCLength (RF24_CRC_16);
+      // Pipe 1 holds only the top 4 bytes of the primary remote's address
+      // (last byte masked to 0) - this establishes the shared base address
+      // that pipes 2-5 inherit (a hardware requirement of the nRF24L01+).
+      // The primary remote's actual traffic is received on pipe 2.
       radio.openReadingPipe(1, address & 0xFFFFFFFF00);
       radio.openReadingPipe(2, address & 0xFFFFFFFFFF);
       if (pipe3Address) {
@@ -354,6 +387,9 @@ void setupNrf24() {
       }
       if (pipe4Address) {
         radio.openReadingPipe(4, pipe4Address & 0xFFFFFFFFFF);
+      }
+      if (pipe5Address) {
+        radio.openReadingPipe(5, pipe5Address & 0xFFFFFFFFFF);
       }
       radio.startListening();
       Serial.println("nRF24L01+ Radio hardware configured");
@@ -370,7 +406,8 @@ void setupNrf24() {
 
 void setupHomeAssistant() {
  // setup HA device
-  device.setUniqueId(mac, sizeof(mac));
+  // Unique ID is now set via the HADevice(deviceId) constructor above,
+  // using a sanitized slug of DEVICE_NAME instead of the MAC address.
   device.setName(DEVICE_NAME);
   device.setSoftwareVersion(SOFTWARE_VERSION);
   device.setManufacturer(MANUFACTURER);
@@ -393,7 +430,7 @@ void setupHomeAssistant() {
   ipAddress.setName("IP Address");
   ipAddress.setIcon("mdi:network-outline");
   ipAddress.setEntityCategory("diagnostic");
-  if (USE_WIRED||USE_WIRED_SPI) {
+  if (USE_WIRED || USE_WIRED_SPI) {
     wifiRssi.setName("Link Speed");
     wifiRssi.setIcon("mdi:speedometer");
     wifiRssi.setUnitOfMeasurement("Mb/s");
@@ -406,9 +443,29 @@ void setupHomeAssistant() {
   radioStatus.setName("Radio Status");
   radioStatus.setIcon("mdi:radio-tower");
   radioStatus.setEntityCategory("diagnostic");
-  remoteAddress.setName("Remote Group Address");
+  remoteAddress.setName("Remote Address");
   remoteAddress.setIcon("mdi:remote");
   remoteAddress.setEntityCategory("diagnostic");
+  pipe2AddressSensor.setName("Pipe 2 Address");
+  pipe2AddressSensor.setIcon("mdi:remote");
+  pipe2AddressSensor.setEntityCategory("diagnostic");
+  pipe2AddressSensor.setValue(addressChar);
+  pipe3AddressSensor.setName("Pipe 3 Address");
+  pipe3AddressSensor.setIcon("mdi:remote");
+  pipe3AddressSensor.setEntityCategory("diagnostic");
+  pipe3AddressSensor.setValue(pipe3Char);
+  pipe4AddressSensor.setName("Pipe 4 Address");
+  pipe4AddressSensor.setIcon("mdi:remote");
+  pipe4AddressSensor.setEntityCategory("diagnostic");
+  pipe4AddressSensor.setValue(pipe4Char);
+  pipe5AddressSensor.setName("Pipe 5 Address");
+  pipe5AddressSensor.setIcon("mdi:remote");
+  pipe5AddressSensor.setEntityCategory("diagnostic");
+  pipe5AddressSensor.setValue(pipe5Char);
+  mqttTopicSensor.setName("MQTT Topic");
+  mqttTopicSensor.setIcon("mdi:folder-network-outline");
+  mqttTopicSensor.setEntityCategory("diagnostic");
+  mqttTopicSensor.setValue(mqttTopicChar);
   rebootDevice.setName("Reboot");
   rebootDevice.setIcon("mdi:restart");
   rebootDevice.setEntityCategory("config");
@@ -454,8 +511,8 @@ void onButtonCommand(HAButton* sender) {
 void savePreference() {
   Serial.print("The remote RF24 address is: ");
   Serial.println(addressChar);
-  buildGroupAddressChar();
-  remoteAddress.setValue(groupAddressChar);
+  remoteAddress.setValue(addressChar);
+  pipe2AddressSensor.setValue(addressChar);
   prefs.putULong64("remote_address", strtoull(addressChar, nullptr, 16));
   Serial.print("saving preference");
   while (!prefs.getULong64("remote_address", 0)) {
@@ -471,7 +528,8 @@ void restartDevice() {
 }
 
 void initialSetup() {
-  remoteAddress.setValue(groupAddressChar);
+  remoteAddress.setValue(addressChar);
+  pipe2AddressSensor.setValue(addressChar);
   // Send out data to trigger the Hub
   if(pingRetries == 0) {
       radio.setChannel(channels[channelId]);
@@ -671,14 +729,19 @@ void loop() {
     }
     upTime.setValue(uptimeChar);
     radioStatus.setState(radioActive);
-    remoteAddress.setValue(groupAddressChar);
+    remoteAddress.setValue(addressChar);
+    pipe2AddressSensor.setValue(addressChar);
+    pipe3AddressSensor.setValue(pipe3Char);
+    pipe4AddressSensor.setValue(pipe4Char);
+    pipe5AddressSensor.setValue(pipe5Char);
+    mqttTopicSensor.setValue(mqttTopicChar);
     shortLastUpdateAt = millis();
   }
   if ((millis() - longLastUpdateAt) > 60000) { // update in 60s interval
     longLastUpdateAt = millis();
     macAddress.setValue(macChar);
     ipAddress.setValue(ipChar);
-    if (!USE_WIRED||USE_WIRED_SPI){
+    if (!USE_WIRED && !USE_WIRED_SPI){
       sprintf(rssiChar, "%d", GET_WIFI_RSSI);
     }
     wifiRssi.setValue(rssiChar);
