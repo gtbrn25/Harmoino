@@ -10,7 +10,6 @@
 
 // arduino_secrets.h CAN contain the following #define statements to override defaults
 // USE_WIRED - whether to use wired network config (default false)
-// USE_WIRED_SPI - whether to use wired SPI network config (default true)
 //   this only supports RTL8201 based LAN devices
 // CE - the pin number or name for the CE connection to the radio (default 14)
 // CSN - the pin number or name for the CSN connection to the radio (default 8)
@@ -26,6 +25,11 @@
 //   You only need this if you are trying to manually load a remote address because you don't have the hub anymore.
 //   Once you reload the sketch with this, you can use the Migrate button in the HA device to save the remote address
 //   to flash.  After that you can remove this and reload the sketch one more time.
+// REMOTE_ADR_PIPE1 - an optional supplemental remote address, read fresh every boot and always active,
+//   grouped onto this radio's extra reading pipes alongside the normally-paired remote above (default REMOTE_ADR)
+// REMOTE_ADR_PIPE2 - a second optional supplemental remote address, same idea as REMOTE_ADR_PIPE1 (default 0/unused)
+//   Supplemental remotes must share the same top 4 bytes as the paired remote - this is a hardware
+//   requirement for using multiple nRF24 reading pipes on one radio. Set either to 0 to leave unused.
 // Harmony commands
 //   Type 0 : Only accept single clicks separated nu button releases (most responsive)
 //   Type 1 : Generated repeated clicks when button is held 
@@ -79,7 +83,7 @@
 // CMD_PLUS - key press (default 0)
 // CMD_MINUS - key press (default 0)
 
-#define SOFTWARE_VERSION "2.3.5"
+#define SOFTWARE_VERSION "2.3.4"
 #define MANUFACTURER "pkscout"
 #define MODEL "Harmoino OpenHub for Home Assistant"
 #define CONFIG_URL "https://github.com/pkscout/Harmoino"
@@ -124,6 +128,13 @@ SPIClass ethSPI(HSPI);
 Preferences prefs;
 uint64_t address = 0;
 char addressChar[50];
+
+// Optional supplemental remotes sharing this radio's extra reading pipes
+// (REMOTE_ADR_PIPE1/PIPE2), grouped alongside the normally-paired remote.
+// 0 means unused.
+const uint64_t pipe3Address = REMOTE_ADR_PIPE1;
+const uint64_t pipe4Address = REMOTE_ADR_PIPE2;
+char groupAddressChar[110]; // comma-separated list of every address this radio is listening for
 
 typedef struct {
   uint32_t id;
@@ -263,6 +274,29 @@ void setupPreferences() {
     sprintf(addressChar, "ready for pairing");
     Serial.println("No remote address, triggering initial setup");
   }
+  buildGroupAddressChar();
+}
+
+// Builds the comma-separated list of supplemental remotes configured via
+// REMOTE_ADR_PIPE1/PIPE2, grouped onto this radio's extra reading pipes. The
+// primary paired address is intentionally left out of this list; when no
+// supplemental pipes are configured at all, it falls back to showing the
+// primary address so the entity isn't left blank.
+void buildGroupAddressChar() {
+  groupAddressChar[0] = '\0';
+  if (pipe3Address) {
+    char tmp[20];
+    sprintf(tmp, "0x%llX", pipe3Address);
+    strcat(groupAddressChar, tmp);
+  }
+  if (pipe4Address) {
+    char tmp[20];
+    sprintf(tmp, "%s0x%llX", groupAddressChar[0] ? "," : "", pipe4Address);
+    strcat(groupAddressChar, tmp);
+  }
+  if (!groupAddressChar[0]) {
+    strcpy(groupAddressChar, addressChar);
+  }
 }
 
 void setupNetwork() {
@@ -287,7 +321,7 @@ void setupNetwork() {
   Serial.print("IP address: ");
   Serial.println(ipChar);
   sprintf(rssiChar, "%d", GET_WIFI_RSSI);
-  if (USE_WIRED||USE_WIRED_SPI){
+  if (USE_WIRED){
     Serial.print("Link speed: ");
     Serial.print(rssiChar);
     Serial.println(" Mb/s");
@@ -315,6 +349,12 @@ void setupNrf24() {
       radio.setCRCLength (RF24_CRC_16);
       radio.openReadingPipe(1, address & 0xFFFFFFFF00);
       radio.openReadingPipe(2, address & 0xFFFFFFFFFF);
+      if (pipe3Address) {
+        radio.openReadingPipe(3, pipe3Address & 0xFFFFFFFFFF);
+      }
+      if (pipe4Address) {
+        radio.openReadingPipe(4, pipe4Address & 0xFFFFFFFFFF);
+      }
       radio.startListening();
       Serial.println("nRF24L01+ Radio hardware configured");
     } else {
@@ -353,7 +393,7 @@ void setupHomeAssistant() {
   ipAddress.setName("IP Address");
   ipAddress.setIcon("mdi:network-outline");
   ipAddress.setEntityCategory("diagnostic");
-  if (USE_WIRED||USE_WIRED_SPI) {
+  if (USE_WIRED) {
     wifiRssi.setName("Link Speed");
     wifiRssi.setIcon("mdi:speedometer");
     wifiRssi.setUnitOfMeasurement("Mb/s");
@@ -366,7 +406,7 @@ void setupHomeAssistant() {
   radioStatus.setName("Radio Status");
   radioStatus.setIcon("mdi:radio-tower");
   radioStatus.setEntityCategory("diagnostic");
-  remoteAddress.setName("Remote Address");
+  remoteAddress.setName("Remote Group Address");
   remoteAddress.setIcon("mdi:remote");
   remoteAddress.setEntityCategory("diagnostic");
   rebootDevice.setName("Reboot");
@@ -414,7 +454,8 @@ void onButtonCommand(HAButton* sender) {
 void savePreference() {
   Serial.print("The remote RF24 address is: ");
   Serial.println(addressChar);
-  remoteAddress.setValue(addressChar);
+  buildGroupAddressChar();
+  remoteAddress.setValue(groupAddressChar);
   prefs.putULong64("remote_address", strtoull(addressChar, nullptr, 16));
   Serial.print("saving preference");
   while (!prefs.getULong64("remote_address", 0)) {
@@ -430,7 +471,7 @@ void restartDevice() {
 }
 
 void initialSetup() {
-  remoteAddress.setValue(addressChar);
+  remoteAddress.setValue(groupAddressChar);
   // Send out data to trigger the Hub
   if(pingRetries == 0) {
       radio.setChannel(channels[channelId]);
@@ -630,14 +671,14 @@ void loop() {
     }
     upTime.setValue(uptimeChar);
     radioStatus.setState(radioActive);
-    remoteAddress.setValue(addressChar);
+    remoteAddress.setValue(groupAddressChar);
     shortLastUpdateAt = millis();
   }
   if ((millis() - longLastUpdateAt) > 60000) { // update in 60s interval
     longLastUpdateAt = millis();
     macAddress.setValue(macChar);
     ipAddress.setValue(ipChar);
-    if (!USE_WIRED||USE_WIRED_SPI){
+    if (!USE_WIRED){
       sprintf(rssiChar, "%d", GET_WIFI_RSSI);
     }
     wifiRssi.setValue(rssiChar);
