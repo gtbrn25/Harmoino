@@ -10,6 +10,7 @@
 
 // arduino_secrets.h CAN contain the following #define statements to override defaults
 // USE_WIRED - whether to use wired network config (default false)
+// USE_WIRED_SPI - whether to use wired SPI network config (default true)
 //   this only supports RTL8201 based LAN devices
 // CE - the pin number or name for the CE connection to the radio (default 14)
 // CSN - the pin number or name for the CSN connection to the radio (default 8)
@@ -92,7 +93,19 @@
 #include <Preferences.h>
 #if USE_WIRED
 #include <ETH.h>
-#define NETWORK_CONNECT ETH.begin(ETH_PHY_SET, PHY_ADR, SMI_MDC, SMI_MDIO, PHY_RESET, ETH_GPIO_CLK_SET)
+#define NETWORK_CONNECT ETH.begin(ETH_PHY_W5500, PHY_ADR, SMI_MDC, SMI_MDIO, PHY_RESET, ETH_GPIO_CLK_SET)
+#define GET_MAC ETH.macAddress(mac)
+#define NETWORK_DOWN ETH.localIP() == IPAddress(0, 0, 0, 0)
+#define NETWORK_CLIENT NetworkClient client
+#define GET_LOCALIP ETH.localIP()
+#define GET_WIFI_RSSI ETH.linkSpeed()
+#elif USE_WIRED_SPI
+#include <ETH.h>
+SPIClass ethSPI(HSPI);
+#define NETWORK_CONNECT do { \
+    ethSPI.begin(ETH_SPI_SCK, ETH_SPI_MISO, ETH_SPI_MOSI, ETH_PHY_CS); \
+    ETH.begin(ETH_PHY_SET, 0, ETH_PHY_CS, ETH_PHY_IRQ, ETH_PHY_RST, ethSPI); \
+} while(0)
 #define GET_MAC ETH.macAddress(mac)
 #define NETWORK_DOWN ETH.localIP() == IPAddress(0, 0, 0, 0)
 #define NETWORK_CLIENT NetworkClient client
@@ -274,7 +287,7 @@ void setupNetwork() {
   Serial.print("IP address: ");
   Serial.println(ipChar);
   sprintf(rssiChar, "%d", GET_WIFI_RSSI);
-  if (USE_WIRED){
+  if (USE_WIRED||USE_WIRED_SPI){
     Serial.print("Link speed: ");
     Serial.print(rssiChar);
     Serial.println(" Mb/s");
@@ -340,7 +353,7 @@ void setupHomeAssistant() {
   ipAddress.setName("IP Address");
   ipAddress.setIcon("mdi:network-outline");
   ipAddress.setEntityCategory("diagnostic");
-  if (USE_WIRED) {
+  if (USE_WIRED||USE_WIRED_SPI) {
     wifiRssi.setName("Link Speed");
     wifiRssi.setIcon("mdi:speedometer");
     wifiRssi.setUnitOfMeasurement("Mb/s");
@@ -624,7 +637,7 @@ void loop() {
     longLastUpdateAt = millis();
     macAddress.setValue(macChar);
     ipAddress.setValue(ipChar);
-    if (!USE_WIRED){
+    if (!USE_WIRED||USE_WIRED_SPI){
       sprintf(rssiChar, "%d", GET_WIFI_RSSI);
     }
     wifiRssi.setValue(rssiChar);
