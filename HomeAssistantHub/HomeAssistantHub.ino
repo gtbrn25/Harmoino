@@ -1,6 +1,7 @@
 //  Home Assistant Harmony hub for ESP32
 //  The purpose of the hub is to receive Harmony remote commands via nRF24L01+
 //  and to format these and pass them on over MQTT to Home Assistant
+//  Now MQTT topic is the device name instead of MAC and also shows MQTT Topic in Home Assistant
 
 // arduino_secrets.h MUST contain the following #define statements
 // BROKER_ADDR - the IP address of the MQTT broker in format IPAddress(127,0,0,1)
