@@ -1,6 +1,6 @@
 //ESP32 (not S3 board)
 #ifndef DEVICE_NAME
-#define DEVICE_NAME "Harmoino Family Room"
+#define DEVICE_NAME "Harmoino Test"
 #endif
 
 // network connection
@@ -62,7 +62,7 @@
 
 // nRF24L01+ parameters
 #ifndef REMOTE_ADR
-#define REMOTE_ADR 0x56C492660B
+#define REMOTE_ADR 0
 #endif
 #ifndef CE_PIN
 #define CE_PIN 2
@@ -80,11 +80,14 @@
 // remotes whose address shares the same top 4 bytes as the paired remote (a
 // hardware requirement for multiple nRF24 reading pipes on one radio). Set to
 // 0 to leave unused.
-#ifndef REMOTE_ADR_PIPE1
-#define REMOTE_ADR_PIPE1 0x56C492660C
+#ifndef REMOTE_ADR_PIPE3
+#define REMOTE_ADR_PIPE3 0
 #endif
-#ifndef REMOTE_ADR_PIPE2
-#define REMOTE_ADR_PIPE2 0x56C492660D
+#ifndef REMOTE_ADR_PIPE4
+#define REMOTE_ADR_PIPE4 0
+#endif
+#ifndef REMOTE_ADR_PIPE5
+#define REMOTE_ADR_PIPE5 0
 #endif
 
 
