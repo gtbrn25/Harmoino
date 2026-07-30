@@ -300,7 +300,7 @@ void buildGroupAddressChar() {
 }
 
 void setupNetwork() {
-  if (USE_WIRED) {
+  if (USE_WIRED||USE_WIRED_SPI) {
     Serial.print("Connecting to network");
   } else {
     Serial.print("Connecting to ");
@@ -321,7 +321,7 @@ void setupNetwork() {
   Serial.print("IP address: ");
   Serial.println(ipChar);
   sprintf(rssiChar, "%d", GET_WIFI_RSSI);
-  if (USE_WIRED){
+  if (USE_WIRED||USE_WIRED_SPI){
     Serial.print("Link speed: ");
     Serial.print(rssiChar);
     Serial.println(" Mb/s");
@@ -393,7 +393,7 @@ void setupHomeAssistant() {
   ipAddress.setName("IP Address");
   ipAddress.setIcon("mdi:network-outline");
   ipAddress.setEntityCategory("diagnostic");
-  if (USE_WIRED) {
+  if (USE_WIRED||USE_WIRED_SPI) {
     wifiRssi.setName("Link Speed");
     wifiRssi.setIcon("mdi:speedometer");
     wifiRssi.setUnitOfMeasurement("Mb/s");
@@ -678,7 +678,7 @@ void loop() {
     longLastUpdateAt = millis();
     macAddress.setValue(macChar);
     ipAddress.setValue(ipChar);
-    if (!USE_WIRED){
+    if (!USE_WIRED||USE_WIRED_SPI){
       sprintf(rssiChar, "%d", GET_WIFI_RSSI);
     }
     wifiRssi.setValue(rssiChar);
