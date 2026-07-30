@@ -1,6 +1,14 @@
+//ESP32
+#ifndef DEVICE_NAME
+#define DEVICE_NAME "Harmoino Testing"
+#endif
+
 // network connection
 #ifndef USE_WIRED
 #define USE_WIRED false
+#endif
+#ifndef USE_WIRED_SPI
+#define USE_WIRED_SPI true
 #endif
 #ifndef SECRET_SSID
 #define SECRET_SSID ""
@@ -9,40 +17,63 @@
 #define SECRET_PASS ""
 #endif
 
-// default PINS for the Ethernet Port
-#ifndef PHY_ADR
-#define PHY_ADR 0
-#endif
-#ifndef PHY_RESET
-#define PHY_RESET -1
-#endif
-#ifndef SMI_MDC
-#define SMI_MDC 16
-#endif
-#ifndef SMI_MDIO
-#define SMI_MDIO 17
-#endif
-#ifndef ETH_PHY_SET
-#define ETH_PHY_SET ETH_PHY_RTL8201
-#endif
-#ifndef ETH_GPIO_CLK_SET
-#define ETH_GPIO_CLK_SET ETH_CLOCK_GPIO0_IN
-#endif
+// default PINS for the Ethernet Port NOT W5500
+//#ifndef PHY_ADR
+//#define PHY_ADR 0
+//#endif
+//#ifndef PHY_RESET
+//#define PHY_RESET -1
+//#endif
+//#ifndef SMI_MDC
+//#define SMI_MDC 16
+//#endif
+//#ifndef SMI_MDIO
+//#define SMI_MDIO 17
+//#endif
+//#ifndef ETH_PHY_SET
+//#define ETH_PHY_SET ETH_PHY_RTL8201
+//#endif
+//#ifndef ETH_GPIO_CLK_SET
+//#define ETH_GPIO_CLK_SET ETH_CLOCK_GPIO0_IN
+//#endif
 
+// default PINS for the Ethernet Port IS W5500
+#ifndef ETH_PHY_SET
+#define ETH_PHY_SET ETH_PHY_W5500
+#endif
+#ifndef ETH_SPI_SCK
+#define ETH_SPI_SCK   14
+#endif
+#ifndef ETH_SPI_MISO
+#define ETH_SPI_MISO  12
+#endif
+#ifndef ETH_SPI_MOSI
+#define ETH_SPI_MOSI  13
+#endif
+#ifndef ETH_PHY_CS    
+#define ETH_PHY_CS    25
+#endif
+#ifndef ETH_PHY_IRQ       
+#define ETH_PHY_IRQ   26
+#endif
+#ifndef ETH_PHY_RST
+#define ETH_PHY_RST   -1  // not connected
+#endif
 
 // nRF24L01+ parameters
 #ifndef REMOTE_ADR
 #define REMOTE_ADR 0
 #endif
 #ifndef CE_PIN
-#define CE_PIN 14
+#define CE_PIN 2
 #endif
 #ifndef CSN_PIN
-#define CSN_PIN 8
+#define CSN_PIN 4
 #endif
 #ifndef RADIO_CH
 #define RADIO_CH 5
 #endif
+
 
 // MQTT parameters
 #ifndef BROKER_PORT
@@ -56,9 +87,6 @@
 #endif
 
 // Harmony parameters
-#ifndef DEVICE_NAME
-#define DEVICE_NAME "Harmoino OpenHub"
-#endif
 #ifndef CLICK_DURATION
 #define CLICK_DURATION 500
 #endif
@@ -75,16 +103,16 @@
 #define CMD_OK 0
 #endif
 #ifndef CMD_UP
-#define CMD_UP 1
+#define CMD_UP 0
 #endif
 #ifndef CMD_DOWN
-#define CMD_DOWN 1
+#define CMD_DOWN 0
 #endif
 #ifndef CMD_LEFT
-#define CMD_LEFT 1
+#define CMD_LEFT 0
 #endif
 #ifndef CMD_RIGHT
-#define CMD_RIGHT 1
+#define CMD_RIGHT 0
 #endif
 #ifndef CMD_VOL_UP
 #define CMD_VOL_UP 1
@@ -93,13 +121,13 @@
 #define CMD_VOL_DOWN 1
 #endif
 #ifndef CMD_CH_UP
-#define CMD_CH_UP 1
+#define CMD_CH_UP 0
 #endif
 #ifndef CMD_CH_DOWN
-#define CMD_CH_DOWN 1
+#define CMD_CH_DOWN 0
 #endif
 #ifndef CMD_MUTE
-#define CMD_MUTE 0
+#define CMD_MUTE 2
 #endif
 #ifndef CMD_RETURN
 #define CMD_RETURN 0
@@ -108,34 +136,34 @@
 #define CMD_EXIT 0
 #endif
 #ifndef CMD_MENU
-#define CMD_MENU 0
+#define CMD_MENU 2
 #endif
 #ifndef CMD_DVR
-#define CMD_DVR 0
+#define CMD_DVR 2
 #endif
 #ifndef CMD_GUIDE
-#define CMD_GUIDE 0
+#define CMD_GUIDE 2
 #endif
 #ifndef CMD_INFO
-#define CMD_INFO 0
+#define CMD_INFO 2
 #endif
 #ifndef CMD_RED
-#define CMD_RED 0
+#define CMD_RED 2
 #endif
 #ifndef CMD_GREEN
-#define CMD_GREEN 0
+#define CMD_GREEN 2
 #endif
 #ifndef CMD_YELLOW
-#define CMD_YELLOW 0
+#define CMD_YELLOW 2
 #endif
 #ifndef CMD_BLUE
-#define CMD_BLUE 0
+#define CMD_BLUE 2
 #endif
 #ifndef CMD_BACKWARD
-#define CMD_BACKWARD 1
+#define CMD_BACKWARD 0
 #endif
 #ifndef CMD_FORWARD
-#define CMD_FORWARD 1
+#define CMD_FORWARD 0
 #endif
 #ifndef CMD_PLAY
 #define CMD_PLAY 0
@@ -144,10 +172,10 @@
 #define CMD_PAUSE 0
 #endif
 #ifndef CMD_STOP
-#define CMD_STOP 0
+#define CMD_STOP 2
 #endif
 #ifndef CMD_REC
-#define CMD_REC 0
+#define CMD_REC 2
 #endif
 #ifndef CMD_MUSIC
 #define CMD_MUSIC 2
@@ -162,7 +190,7 @@
 #define CMD_OFF 0
 #endif
 #ifndef CMD_NUM0
-#define CMD_NUM0 0
+#define CMD_NUM0 2
 #endif
 #ifndef CMD_NUM1
 #define CMD_NUM1 0
@@ -192,22 +220,22 @@
 #define CMD_NUM9 0
 #endif
 #ifndef CMD_DOTDOT
-#define CMD_DOTDOT 0
+#define CMD_DOTDOT 2
 #endif
 #ifndef CMD_DOTE
-#define CMD_DOTE 0
+#define CMD_DOTE 2
 #endif
 #ifndef CMD_LIGHT1
-#define CMD_LIGHT1 0
+#define CMD_LIGHT1 2
 #endif
 #ifndef CMD_LIGHT2
-#define CMD_LIGHT2 0
+#define CMD_LIGHT2 2
 #endif
 #ifndef CMD_SOCKET1
-#define CMD_SOCKET1 0
+#define CMD_SOCKET1 2
 #endif
 #ifndef CMD_SOCKET2
-#define CMD_SOCKET2 0
+#define CMD_SOCKET2 2
 #endif
 #ifndef CMD_PLUS
 #define CMD_PLUS 0
