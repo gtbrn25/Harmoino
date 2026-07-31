@@ -12,6 +12,8 @@ This can likely be expanded to
 3. Claude seems to think Pipe 0 and Pipes 1-5 can have completely separate addresses, so it could be possible to have 6 total remotes.  My attempt failed, but I only tried a single code revision.  Don't need this capability yet.
 
 
+Below is from pkscout's repository.  Excellent work!!
+
 # Harmoino OpenHub for Home Assistant
 The primary focus of this fork is a new HomeAssistantHub that combines all the remote discovery and operations from the original into one sketch and automatically creates a device in Home Assistant so that you can use your Harmony remote to control things in Home Assistant.
 
