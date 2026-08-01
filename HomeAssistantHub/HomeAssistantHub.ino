@@ -1,7 +1,6 @@
 //  Home Assistant Harmony hub for ESP32
 //  The purpose of the hub is to receive Harmony remote commands via nRF24L01+
 //  and to format these and pass them on over MQTT to Home Assistant
-//  Now MQTT topic is the device name instead of MAC and also shows MQTT Topic in Home Assistant
 
 // arduino_secrets.h MUST contain the following #define statements
 // BROKER_ADDR - the IP address of the MQTT broker in format IPAddress(127,0,0,1)
@@ -16,6 +15,9 @@
 // CSN - the pin number or name for the CSN connection to the radio (default 8)
 // RADIO_CH - the channel to listen for remotes, Choose 5 (default),8,14,17,32,35,41,44,62,65,71 or 74
 // DEVICE_NAME - the name of the remote (default Harmony OpenHub)
+// OTA_PASSWORD - password required before accepting a firmware update pushed over the
+//   network (default ""/none). Once flashed, the device shows up as a network port in
+//   the Arduino IDE (or arduino-cli/PlatformIO) - future uploads no longer need a USB cable.
 // CLICK_DURATION - maximal duration of a click in ms, and minimal duration for a long press (default 500)
 // WAIT_DURATION - time in ms to wait after a click to register additional clicks (default 200)
 // SECOND_REPEAT_DURATION - time in ms to start repeating inputs for type 1 command (defaullt 1000)
@@ -97,6 +99,7 @@
 #include <RF24.h>
 #include <ArduinoHA.h>
 #include <Preferences.h>
+#include <ArduinoOTA.h>
 #if USE_WIRED
 #include <ETH.h>
 #define NETWORK_CONNECT ETH.begin(ETH_PHY_W5500, PHY_ADR, SMI_MDC, SMI_MDIO, PHY_RESET, ETH_GPIO_CLK_SET)
@@ -272,6 +275,7 @@ void setup() {
   buildDeviceId();
   setupPreferences();
   setupNetwork();
+  setupOTA();
   setupNrf24(); 
   setupHomeAssistant();
 }
@@ -361,6 +365,46 @@ void setupNetwork() {
     Serial.println(" dBm");
   }
   
+}
+
+// Enables flashing new firmware over the network (WiFi or Ethernet - works
+// with this board's W5500 setup too, since the bundled ArduinoOTA library
+// uses the network-agnostic NetworkUDP class on ESP32 core v3.x). Once this
+// device shows up in Tools > Port in the Arduino IDE (or via
+// arduino-cli/PlatformIO), you can upload a new sketch to it exactly like a
+// USB upload - no cable needed. Set OTA_PASSWORD in arduino_secrets.h if you
+// want to require a password before an update is accepted.
+void setupOTA() {
+  ArduinoOTA.setHostname(deviceId);
+  if (strlen(OTA_PASSWORD) > 0) {
+    ArduinoOTA.setPassword(OTA_PASSWORD);
+  }
+  ArduinoOTA.onStart([]() {
+    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
+    Serial.println("OTA update starting: " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nOTA update complete, rebooting");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("OTA progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA error [%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End failed");
+    }
+  });
+  ArduinoOTA.begin();
+  Serial.println("OTA ready");
 }
 
 void setupNrf24() {
@@ -702,6 +746,7 @@ getHarmonyCommand(uint32_t id) {
 }
 
 void loop() {
+  ArduinoOTA.handle();
   mqtt.loop();
 
   if (address) {
