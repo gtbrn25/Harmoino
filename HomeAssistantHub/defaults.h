@@ -1,6 +1,6 @@
 //ESP32 (not S3 board)
 #ifndef DEVICE_NAME
-#define DEVICE_NAME "Harmoino Test"
+#define DEVICE_NAME "Harmoino Playroom"
 #endif
 
 // network connection
@@ -8,13 +8,20 @@
 #define USE_WIRED false
 #endif
 #ifndef USE_WIRED_SPI
-#define USE_WIRED_SPI true
+#define USE_WIRED_SPI false
 #endif
 #ifndef SECRET_SSID
 #define SECRET_SSID ""
 #endif
 #ifndef SECRET_PASS
 #define SECRET_PASS ""
+#endif
+ 
+// OTA_PASSWORD - password required to push a firmware update over the network.
+// Leave as "" to allow unauthenticated OTA updates on your local network (fine
+// for most home setups); set a real value to require it before flashing.
+#ifndef OTA_PASSWORD
+#define OTA_PASSWORD ""
 #endif
 
 // default PINS for the Ethernet Port NOT W5500
