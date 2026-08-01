@@ -1,6 +1,6 @@
 //ESP32 (not S3 board)
 #ifndef DEVICE_NAME
-#define DEVICE_NAME "Harmoino Playroom"
+#define DEVICE_NAME "Harmoino Device Name"
 #endif
 
 // network connection
@@ -8,7 +8,7 @@
 #define USE_WIRED false
 #endif
 #ifndef USE_WIRED_SPI
-#define USE_WIRED_SPI false
+#define USE_WIRED_SPI true
 #endif
 #ifndef SECRET_SSID
 #define SECRET_SSID ""
