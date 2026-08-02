@@ -468,7 +468,7 @@ void setupHomeAssistant() {
   upTime.setName("Uptime");
   upTime.setEntityCategory("diagnostic");
   upTime.setIcon("mdi:clock-check-outline");
-  upTime.setExpireAfter(40);
+  upTime.setExpireAfter(90);
   macAddress.setName("MAC Address");
   macAddress.setIcon("mdi:ethernet");
   macAddress.setEntityCategory("diagnostic");
@@ -755,6 +755,17 @@ void loop() {
     initialSetup();
   }
   if ((millis() - shortLastUpdateAt) > 2000) { // update in 2s interval
+    radioStatus.setState(radioActive);
+    remoteAddress.setValue(addressChar);
+    pipe2AddressSensor.setValue(addressChar);
+    pipe3AddressSensor.setValue(pipe3Char);
+    pipe4AddressSensor.setValue(pipe4Char);
+    pipe5AddressSensor.setValue(pipe5Char);
+    mqttTopicSensor.setValue(mqttTopicChar);
+    shortLastUpdateAt = millis();
+  }
+  if ((millis() - longLastUpdateAt) > 60000) { // update in 60s interval
+    longLastUpdateAt = millis();
     unsigned long seconds = millis() / 1000;
     int days = seconds / (24 * 3600);
     seconds = seconds % (24 * 3600);
@@ -774,17 +785,6 @@ void loop() {
       sprintf(uptimeChar, "%ds", seconds);
     }
     upTime.setValue(uptimeChar);
-    radioStatus.setState(radioActive);
-    remoteAddress.setValue(addressChar);
-    pipe2AddressSensor.setValue(addressChar);
-    pipe3AddressSensor.setValue(pipe3Char);
-    pipe4AddressSensor.setValue(pipe4Char);
-    pipe5AddressSensor.setValue(pipe5Char);
-    mqttTopicSensor.setValue(mqttTopicChar);
-    shortLastUpdateAt = millis();
-  }
-  if ((millis() - longLastUpdateAt) > 60000) { // update in 60s interval
-    longLastUpdateAt = millis();
     macAddress.setValue(macChar);
     ipAddress.setValue(ipChar);
     if (!USE_WIRED && !USE_WIRED_SPI){
