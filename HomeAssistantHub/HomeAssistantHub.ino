@@ -756,12 +756,6 @@ void loop() {
   }
   if ((millis() - shortLastUpdateAt) > 2000) { // update in 2s interval
     radioStatus.setState(radioActive);
-    remoteAddress.setValue(addressChar);
-    pipe2AddressSensor.setValue(addressChar);
-    pipe3AddressSensor.setValue(pipe3Char);
-    pipe4AddressSensor.setValue(pipe4Char);
-    pipe5AddressSensor.setValue(pipe5Char);
-    mqttTopicSensor.setValue(mqttTopicChar);
     shortLastUpdateAt = millis();
   }
   if ((millis() - longLastUpdateAt) > 60000) { // update in 60s interval
@@ -791,5 +785,11 @@ void loop() {
       sprintf(rssiChar, "%d", GET_WIFI_RSSI);
     }
     wifiRssi.setValue(rssiChar);
+    remoteAddress.setValue(addressChar);
+    pipe2AddressSensor.setValue(addressChar);
+    pipe3AddressSensor.setValue(pipe3Char);
+    pipe4AddressSensor.setValue(pipe4Char);
+    pipe5AddressSensor.setValue(pipe5Char);
+    mqttTopicSensor.setValue(mqttTopicChar);
   }
 }
