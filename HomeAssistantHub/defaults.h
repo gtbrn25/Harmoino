@@ -2,6 +2,18 @@
 #ifndef DEVICE_NAME
 #define DEVICE_NAME "Harmoino Device Name"
 #endif
+#ifndef REMOTE_ADR
+#define REMOTE_ADR 0
+#endif
+#ifndef REMOTE_ADR_PIPE3
+#define REMOTE_ADR_PIPE3 0
+#endif
+#ifndef REMOTE_ADR_PIPE4
+#define REMOTE_ADR_PIPE4 0
+#endif
+#ifndef REMOTE_ADR_PIPE5
+#define REMOTE_ADR_PIPE5 0
+#endif
 
 // network connection
 #ifndef USE_WIRED
@@ -68,9 +80,6 @@
 #endif
 
 // nRF24L01+ parameters
-#ifndef REMOTE_ADR
-#define REMOTE_ADR 0
-#endif
 #ifndef CE_PIN
 #define CE_PIN 2
 #endif
@@ -80,23 +89,6 @@
 #ifndef RADIO_CH
 #define RADIO_CH 5
 #endif
-
-// Optional supplemental remotes that share the radio's reading pipes alongside
-// its normally-paired remote (REMOTE_ADR/"remote_address" in flash). These
-// are read fresh every boot and always stay active - use them to group extra
-// remotes whose address shares the same top 4 bytes as the paired remote (a
-// hardware requirement for multiple nRF24 reading pipes on one radio). Set to
-// 0 to leave unused.
-#ifndef REMOTE_ADR_PIPE3
-#define REMOTE_ADR_PIPE3 0
-#endif
-#ifndef REMOTE_ADR_PIPE4
-#define REMOTE_ADR_PIPE4 0
-#endif
-#ifndef REMOTE_ADR_PIPE5
-#define REMOTE_ADR_PIPE5 0
-#endif
-
 
 // MQTT parameters
 #ifndef BROKER_PORT
